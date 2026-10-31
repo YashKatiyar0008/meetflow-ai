@@ -19,7 +19,7 @@ function Contours() {
  return <svg className="wa-contours" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">{strokes}</svg>;
 }
 
-function WildHero({onExplore}:{onExplore:()=>void}) {
+function WisprFlowHero({onExplore}:{onExplore:()=>void}) {
  const row=useRef<HTMLDivElement>(null);
  const pill=useRef<HTMLDivElement>(null);
  const hair=useRef<HTMLDivElement>(null);
@@ -73,7 +73,7 @@ function WildHero({onExplore}:{onExplore:()=>void}) {
  return <><div className="wa-hero">
    <p className="wa-hero-caption">Discover the extraordinary</p>
    <div className="wa-word-row" ref={row} style={{fontSize:"var(--fs)"}}>
-     <span className="wa-word">WI</span>
+     <span className="wa-word">WISPR</span>
      <div className="wa-pill" ref={pill}>
        <video ref={video} src={videoUrl} poster={posterUrl} autoPlay muted={muted} loop playsInline preload="auto" aria-label="Floating island with a waterfall above sunset clouds"/>
        <div className="wa-hair" ref={hair}/>
@@ -82,16 +82,16 @@ function WildHero({onExplore}:{onExplore:()=>void}) {
          <button className="wa-sound" aria-label={muted?"Enable audio (clip may be silent)":"Mute video"} onClick={()=>setMuted(x=>!x)}>{muted?<VolumeX/>:<Volume2/>}</button>
        </div>
      </div>
-     <span className="wa-word">LD</span>
+     <span className="wa-word">FLOW.AI</span>
    </div>
    <span className="wa-float">Go beyond the ordinary.</span>
-   <span className="wa-float-right">The wild side of every meeting.</span>
+   <span className="wa-float-right">The better flow of every meeting.</span>
  </div>
  <div className="wa-lead">
-   <p>Embark on a wild ride from conversations to execution. Discover the decisions, owners and next steps hiding in every meeting, without losing your team's history.</p>
+   <p>Turn every conversation into a clear path from decisions to execution. Discover the decisions, owners and next steps hiding in every meeting, without losing your team's history.</p>
    <div className="wa-lead-line"/>
    <button className="wa-btn wa-btn-outline" onClick={replay}><Play size={14}/> Replay reveal</button>
-   <button className="wa-btn" onClick={onExplore}>Let's Get Wild <ArrowUpRight size={16}/></button>
+   <button className="wa-btn" onClick={onExplore}>Get Into Flow <ArrowUpRight size={16}/></button>
  </div></>;
 }
 
@@ -150,12 +150,12 @@ export default function AgentPage(){
    <Contours/>
    <div className="wa-shell">
      <nav className="wa-nav" aria-label="Main navigation">
-       <a href="/" className="wa-logo">WILD<span style={{fontWeight:400,letterSpacing:"-.05em"}}>.</span></a>
+       <a href="/" className="wa-logo">wisprflow.ai</a>
        <div className="wa-links">{nav.map(([key,label])=><button className="wa-tab" key={key} aria-current={tab===key?"page":undefined} onClick={()=>setTab(key)}>{label}</button>)}</div>
-       <a className="wa-back" href="/">Explore Wild <ArrowUpRight size={13} style={{display:"inline"}}/></a>
+       <a className="wa-back" href="/">Explore wisprflow.ai <ArrowUpRight size={13} style={{display:"inline"}}/></a>
      </nav>
      <main className="wa-main">
-       {tab==="overview"&&<WildHero onExplore={()=>setTab("analyze")}/>}
+       {tab==="overview"&&<WisprFlowHero onExplore={()=>setTab("analyze")}/>}
        {error&&<div className="wa-error" role="alert">{error}</div>}
        {notice&&<div className="wa-success" role="status">{notice}</div>}
        {tab==="overview"&&<section className="wa-section">
@@ -199,7 +199,7 @@ export default function AgentPage(){
        {tab==="tasks"&&<section className="wa-section"><p className="wa-eyebrow">003 / Execution</p><h1>Every next move.</h1><p className="wa-section-description">All approved work, with a named owner and a tracker ID. Tasks are recorded to the demo task tracker.</p><div className="wa-panel"><h3>Confirmed tasks</h3>{store.tasks.length===0&&<p className="wa-empty">No approved tasks yet. Analyze your first meeting to begin.</p>}{store.tasks.map(t=><Item key={t.id}><div style={{display:"flex",alignItems:"start",justifyContent:"space-between",gap:18}}><div><strong>{t.title}</strong><p>{t.owner||"Unassigned"} · {t.deadline||"No deadline"} · {t.priority}</p></div><span className="wa-tag">{t.trackerId||"Mock task"}</span></div></Item>)}</div></section>}
        {tab==="memory"&&<section className="wa-section"><p className="wa-eyebrow">004 / Collective intelligence</p><h1>Never lose a decision.</h1><p className="wa-section-description">Persistent context connects decisions across meetings and surfaces possible contradictions before they become costly surprises.</p><div className="wa-grid"><div className="wa-panel"><h3>Decision history</h3>{store.meetings.length===0&&<p className="wa-empty">Your approved meetings will appear here.</p>}{store.meetings.slice().reverse().map(m=><div key={m.id} className="wa-item"><strong>{m.title}</strong><p className="wa-small">{m.date} · {m.engine}</p>{m.decisions.map(d=><p key={d.id} style={{marginTop:12}}>{d.statement} <span className="wa-tag">{d.status}</span></p>)}</div>)}</div><div className="wa-panel"><h3>Cross-meeting conflicts</h3>{store.conflicts.length===0&&<p className="wa-empty">No conflicts recorded so far.</p>}{store.conflicts.map(c=><div className="wa-conflict" key={c.id}><p><b>Before:</b> {c.oldStatement}</p><p><b>Now:</b> {c.newStatement}</p><span className="wa-tag">{c.resolution}</span></div>)}</div></div></section>}
        {tab==="digest"&&<section className="wa-section"><p className="wa-eyebrow">005 / Stay accountable</p><h1>The week ahead.</h1><p className="wa-section-description">Person-by-person commitments and deadline reminders, generated automatically from confirmed tasks.</p><div className="wa-stats">{[["Assigned tasks",store.tasks.length],["Owners",ownerGroups.length],["Overdue",overdue.length],["Due soon",upcoming.length]].map(([label,n])=><div key={label} className="wa-stat"><span>{label}</span><strong>{n}</strong></div>)}</div><div className="wa-grid"><div className="wa-panel"><h3>By owner</h3>{ownerGroups.length===0&&<p className="wa-empty">No assigned tasks yet.</p>}{ownerGroups.map(([name,tasks])=><Item key={name}><strong>{name} · {tasks.length} task(s)</strong>{tasks.map(t=><p key={t.id}>{t.title} · {t.deadline||"No deadline"}</p>)}</Item>)}</div><div className="wa-panel"><h3>Deadline reminders</h3><p className="wa-eyebrow" style={{marginTop:24}}>Overdue ({overdue.length})</p>{overdue.map(t=><Item key={t.id}><strong>{t.title}</strong><p>{t.deadline} · {t.owner||"Unassigned"}</p></Item>)}<p className="wa-eyebrow" style={{marginTop:25}}>Within 7 days ({upcoming.length})</p>{upcoming.map(t=><Item key={t.id}><strong>{t.title}</strong><p>{t.deadline} · {t.owner||"Unassigned"}</p></Item>)}{overdue.length+upcoming.length===0&&<p className="wa-empty">No urgent deadlines. Enjoy the view.</p>}</div></div></section>}
-       <footer className="wa-footer"><span>WILD / Meeting-to-Execution AI</span><span>Go further. Remember more. Do better.</span><span>Demo workspace · No authentication · Temporary file storage</span></footer>
+       <footer className="wa-footer"><span>wisprflow.ai / Meeting-to-Execution AI</span><span>Go further. Remember more. Do better.</span><span>Demo workspace · No authentication · Temporary file storage</span></footer>
      </main>
    </div>
  </div>
