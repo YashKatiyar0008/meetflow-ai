@@ -4,6 +4,7 @@ import { ArrowUpRight, ArrowRight, Volume2, VolumeX, Wind, AlertTriangle, Check,
 import type { Meeting, Store, Conflict, Task } from "@/lib/core";
 import "./wild-agent.css";
 import { importWisprFlow } from "@/lib/wispr-import";
+import VoiceCommandPanel from "./VoiceCommandPanel";
 
 type Tab = "overview" | "analyze" | "tasks" | "memory" | "digest";
 const empty: Store = {meetings:[],tasks:[],conflicts:[]};
@@ -181,6 +182,17 @@ export default function AgentPage(){
        <a className="wa-back" href="/">Explore wisprflow.ai <ArrowUpRight size={13} style={{display:"inline"}}/></a>
      </nav>
      <main className="wa-main">
+       <VoiceCommandPanel
+         onNavigate={setTab}
+         onAnalyze={analyze}
+         onLoadSample={() => {
+           setTranscript(demoOne);
+           setTitle("Voice command demo meeting");
+           setMeeting(null);
+           setWisprNotice("Demo transcript loaded by voice command.");
+         }}
+         hasTranscript={transcript.trim().length >= 10}
+       />
        {tab==="overview"&&<WisprFlowHero onExplore={()=>setTab("analyze")}/>}
        {error&&<div className="wa-error" role="alert">{error}</div>}
        {notice&&<div className="wa-success" role="status">{notice}</div>}
