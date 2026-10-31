@@ -90,3 +90,17 @@
 .wa-wispr .wa-chips{margin:16px 0 8px;align-items:center}
 .wa-wispr .wa-chip{text-decoration:none}
 .wa-wispr .wa-file{margin-top:18px}
+
+
+.wa-voice{border:1px solid #aaa9a6;background:rgba(255,255,255,.68);padding:clamp(20px,3vw,34px);margin:30px 0 35px;position:relative}
+.wa-voice-heading{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.wa-voice-heading h2{font-size:clamp(25px,3vw,40px);letter-spacing:-.05em;line-height:1.1;margin:10px 0}
+.wa-voice-explain{font-size:13px;line-height:1.65;color:#4a4a45;max-width:850px}
+.wa-voice-inputs{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:19px}
+.wa-voice-field{flex:1 1 300px;min-width:0}
+.wa-voice-inputs .wa-btn{min-height:46px}
+.wa-voice-chips{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+.wa-voice-status{display:flex;align-items:center;gap:10px;background:#edf1ed;border-left:3px solid #313b34;padding:13px 15px;font-size:13px;color:#29342e}
+.wa-voice-disclaimer{margin-top:15px;display:flex;align-items:flex-start;gap:7px;line-height:1.5}
+.wa-listening{background:#e9dada;color:#831f1f;border-color:#b87777}
+@media(max-width:720px){.wa-voice{margin:20px 0 28px}.wa-voice-inputs .wa-btn{flex:1 1 140px}}
