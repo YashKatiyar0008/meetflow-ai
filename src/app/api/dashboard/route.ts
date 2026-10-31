@@ -1,0 +1,1 @@
+import {NextResponse} from "next/server";import {readStore} from "@/lib/core";export const runtime="nodejs";export async function GET(){try{return NextResponse.json(await readStore(),{headers:{"Cache-Control":"no-store"}})}catch{return NextResponse.json({error:"Storage unavailable"},{status:500})}}
