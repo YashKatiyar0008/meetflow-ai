@@ -1,26 +1,206 @@
 "use client";
-import {useEffect,useState} from "react";
-import {Activity,FileText,History,ListTodo,CalendarDays,AlertTriangle,CheckCircle2,Upload,LoaderCircle} from "lucide-react";
-import type {Meeting,Store,Conflict} from "@/lib/core";
-const empty:Store={meetings:[],tasks:[],conflicts:[]};
-const demo1="Alice: Let's finalize the product launch.\nBob: We will launch on December 15.\nAlice: We decided to launch on December 15.\nCharlie: I will prepare the marketing campaign by November 10.\nBob: I will update the product roadmap by November 5.";
-const demo2="Alice: We need to change our launch date.\nBob: We previously decided December 15.\nAlice: Let's finalize the product launch on January 15 instead.\nCharlie: I will update the marketing campaign by November 12.\nBob: I will update the roadmap by November 8.";
-type Tab="overview"|"analyze"|"tasks"|"memory"|"digest";
-const chip="inline-flex items-center px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold";
-export default function Home(){
-const [tab,setTab]=useState<Tab>("overview"),[store,setStore]=useState<Store>(empty),[title,setTitle]=useState("Product strategy meeting"),[date,setDate]=useState("2026-10-31"),[transcript,setTranscript]=useState(""),[meeting,setMeeting]=useState<Meeting|null>(null),[conflicts,setConflicts]=useState<Conflict[]>([]),[approvedD,setApprovedD]=useState<string[]>([]),[approvedT,setApprovedT]=useState<string[]>([]),[resolutions,setResolutions]=useState<Record<string,"unresolved"|"supersede"|"keep-both">>({}),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
-const refresh=async()=>{const r=await fetch("/api/dashboard",{cache:"no-store"});if(r.ok)setStore(await r.json())};
-useEffect(()=>{refresh()},[]);
-async function analyze(){setBusy(true);setError("");try{const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,date,transcript})});const result=await r.json();if(!r.ok)throw new Error(result.error||"Analysis failed");setMeeting(result.meeting);setConflicts(result.conflicts);setApprovedD(result.meeting.decisions.map((x:{id:string})=>x.id));setApprovedT(result.meeting.tasks.map((x:{id:string})=>x.id));setResolutions({});}catch(e){setError(e instanceof Error?e.message:"Failed")}finally{setBusy(false)}}
-async function confirm(){if(!meeting)return;setBusy(true);setError("");try{const r=await fetch("/api/confirm",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({meeting,approvedDecisionIds:approvedD,approvedTaskIds:approvedT,resolutions})});const result=await r.json();if(!r.ok)throw new Error(result.error||"Confirmation failed");setMeeting(null);setTranscript("");await refresh();setTab("overview");setNotice(result.createdTasks+" approved tasks saved to mock tracker");}catch(e){setError(e instanceof Error?e.message:"Save failed")}finally{setBusy(false)}}
-const open=store.tasks.filter(x=>x.status==="open");const today=new Date().toISOString().slice(0,10);const next=new Date(Date.now()+7*86400000).toISOString().slice(0,10);const overdue=open.filter(x=>x.deadline&&x.deadline<today),upcoming=open.filter(x=>x.deadline&&x.deadline>=today&&x.deadline<=next);
-const owners=Object.entries(store.tasks.reduce((a,t)=>{(a[t.owner||"Unassigned"]||=[]).push(t);return a},{} as Record<string,typeof store.tasks>));
-const tabs:[Tab,string,React.ComponentType<{size?:number}>][]=[["overview","Overview",Activity],["analyze","Analyze meeting",FileText],["tasks","Task tracker",ListTodo],["memory","Decision memory",History],["digest","Weekly digest",CalendarDays]];
-return <div className="min-h-screen lg:flex"><aside className="lg:w-64 bg-white border-r p-6 shrink-0"><div className="text-2xl font-extrabold text-indigo-700 mb-10">◈ meetflow<span className="text-slate-900">.ai</span></div><nav className="flex flex-wrap lg:flex-col gap-2">{tabs.map(([id,label,Icon])=><button key={id} onClick={()=>setTab(id)} className={"flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-left "+(tab===id?"bg-indigo-600 text-white":"text-slate-600 hover:bg-slate-100")}><Icon size={18}/>{label}</button>)}</nav><div className="mt-10 rounded-xl bg-indigo-50 p-4 text-sm text-slate-600"><b>Human-in-the-loop</b><p className="mt-2">Nothing is saved or posted before you approve it.</p></div></aside><main className="flex-1 max-w-7xl mx-auto w-full px-5 md:px-10 py-9"><header className="flex items-center justify-between gap-3 mb-9"><div><h1 className="text-3xl font-bold">Meeting-to-Execution Agent</h1><p className="text-slate-500 mt-2">Decisions, accountability and cross-meeting intelligence</p></div><span className={chip}>MVP Workspace</span></header>{error&&<div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-5">{error}</div>}{notice&&<div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl mb-5">{notice}</div>}
-{tab==="overview"&&<><div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">{[["Confirmed meetings",store.meetings.length],["Created tasks",store.tasks.length],["Potential conflicts",store.conflicts.length],["Overdue",overdue.length]].map(([k,v])=><div key={String(k)} className="bg-white border rounded-2xl p-6 shadow-sm"><p className="text-sm text-slate-500">{k}</p><p className="text-4xl font-extrabold mt-3">{v}</p></div>)}</div><section className="bg-white border rounded-2xl p-7"><h2 className="text-xl font-bold mb-3">Start with a meeting</h2><p className="text-slate-500 mb-5">Analyze transcripts, review extracted decisions, compare them with earlier meetings, and approve tasks.</p><button className="bg-indigo-600 text-white rounded-xl px-5 py-3 font-bold" onClick={()=>setTab("analyze")}>Analyze a transcript →</button></section></>}
-{tab==="analyze"&&<div className="grid xl:grid-cols-3 gap-6"><section className="xl:col-span-2 bg-white border rounded-2xl p-6 space-y-5"><h2 className="text-xl font-bold">New meeting</h2><div className="grid sm:grid-cols-2 gap-4"><label className="text-sm font-semibold">Meeting title<input className="block w-full border rounded-lg p-3 mt-2" value={title} onChange={e=>setTitle(e.target.value)}/></label><label className="text-sm font-semibold">Date<input type="date" className="block w-full border rounded-lg p-3 mt-2" value={date} onChange={e=>setDate(e.target.value)}/></label></div><label className="block text-sm font-semibold">Transcript (.txt)<input type="file" accept=".txt,text/plain" className="block mt-2 text-sm" onChange={async e=>{const f=e.target.files?.[0];if(f)setTranscript(await f.text())}}/></label><textarea className="w-full min-h-64 border rounded-xl p-4 text-sm" placeholder="Alice: Let's finalize the launch..." value={transcript} onChange={e=>setTranscript(e.target.value)}/><div className="flex flex-wrap gap-3"><button className="text-indigo-700 bg-indigo-50 rounded-lg px-4 py-2 font-semibold" onClick={()=>{setTranscript(demo1);setTitle("Initial launch planning");setDate("2026-10-31");setMeeting(null)}}>Sample: Meeting 1</button><button className="text-indigo-700 bg-indigo-50 rounded-lg px-4 py-2 font-semibold" onClick={()=>{setTranscript(demo2);setTitle("Follow-up launch planning");setDate("2026-10-31");setMeeting(null)}}>Sample: Meeting 2</button></div><button disabled={busy||transcript.trim().length<10} onClick={analyze} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold flex gap-2 items-center">{busy?<LoaderCircle className="animate-spin" size={18}/>:<Upload size={18}/>} Analyze meeting</button></section><section className="bg-indigo-50 rounded-2xl p-6"><h3 className="font-bold mb-4">Workflow</h3>{["Upload or paste transcript","Extract speakers, decisions, tasks","Compare prior decisions","Approve before creating tasks","Review dashboard & digest"].map((x,i)=><div key={x} className="flex gap-3 text-sm py-3"><b className="text-indigo-700">{i+1}.</b>{x}</div>)}</section>{meeting&&<section className="xl:col-span-3 bg-white border rounded-2xl p-7 space-y-6"><div className="flex gap-3 justify-between flex-wrap"><h2 className="text-2xl font-bold">Confirm extraction</h2><span className={chip}>{meeting.engine}</span></div><p className="text-slate-600">{meeting.summary}</p><p className="text-sm text-slate-500">Speakers: {meeting.speakers.join(", ")||"Unknown"}</p><h3 className="font-bold text-lg">Decisions</h3>{meeting.decisions.map(d=><label key={d.id} className="flex gap-3 border rounded-xl p-4"><input type="checkbox" checked={approvedD.includes(d.id)} onChange={()=>setApprovedD(v=>v.includes(d.id)?v.filter(x=>x!==d.id):[...v,d.id])}/><div><b>{d.statement}</b><p className="text-xs text-indigo-700 mt-2">{d.topic}</p><p className="text-xs text-slate-500 mt-1">Evidence: {d.evidence}</p></div></label>)}{meeting.decisions.length===0&&<p>No decisions found.</p>}{conflicts.filter(c=>approvedD.includes(c.newId)).length>0&&<h3 className="font-bold text-amber-700 flex gap-2"><AlertTriangle/> Potential conflicts</h3>}{conflicts.filter(c=>approvedD.includes(c.newId)).map(c=><div className="border border-amber-200 bg-amber-50 rounded-xl p-5 space-y-3" key={c.id}><p className="font-semibold">Previously: {c.oldStatement}</p><p className="font-semibold">Now: {c.newStatement}</p><p className="text-sm">{c.reason}</p><select className="border rounded-lg p-2" value={resolutions[c.newId+":"+c.oldId]||"unresolved"} onChange={e=>setResolutions(p=>({...p,[c.newId+":"+c.oldId]:e.target.value as "unresolved"|"supersede"|"keep-both"}))}><option value="unresolved">Keep flagged</option><option value="supersede">Supersede previous</option><option value="keep-both">Keep both</option></select></div>)}<h3 className="font-bold text-lg">Action items</h3>{meeting.tasks.map(t=><div key={t.id} className="border rounded-xl p-4 flex gap-3"><input type="checkbox" checked={approvedT.includes(t.id)} onChange={()=>setApprovedT(v=>v.includes(t.id)?v.filter(x=>x!==t.id):[...v,t.id])}/><div className="flex-1"><input className="w-full font-bold border-b p-2" aria-label="Task title" value={t.title} onChange={e=>setMeeting(m=>m?{...m,tasks:m.tasks.map(v=>v.id===t.id?{...v,title:e.target.value}:v)}:m)}/><div className="grid sm:grid-cols-2 gap-3 mt-2"><label className="text-xs">Owner<input className="block border rounded-lg p-2 mt-1 w-full" value={t.owner||""} onChange={e=>setMeeting(m=>m?{...m,tasks:m.tasks.map(v=>v.id===t.id?{...v,owner:e.target.value||null}:v)}:m)}/></label><label className="text-xs">Deadline<input type="date" className="block border rounded-lg p-2 mt-1 w-full" value={t.deadline||""} onChange={e=>setMeeting(m=>m?{...m,tasks:m.tasks.map(v=>v.id===t.id?{...v,deadline:e.target.value||null}:v)}:m)}/></label></div><p className="text-xs text-slate-500 mt-2">Evidence: {t.evidence}</p></div></div>)}{meeting.tasks.length===0&&<p>No tasks found.</p>}<button onClick={confirm} disabled={busy} className="bg-emerald-600 text-white px-6 py-3 font-bold rounded-xl flex gap-2 items-center"><CheckCircle2/> Confirm and create mock tasks</button></section>}</div>}
-{tab==="tasks"&&<section className="bg-white border rounded-2xl p-6"><h2 className="text-xl font-bold mb-5">Confirmed task tracker</h2>{store.tasks.map(t=><div key={t.id} className="border-b py-4 flex justify-between gap-3"><div><b>{t.title}</b><p className="text-sm text-slate-500 mt-1">{t.owner||"Unassigned"} · {t.deadline||"No deadline"}</p></div><span className={chip}>{t.trackerId||"Mock"}</span></div>)}{store.tasks.length===0&&<p>No confirmed tasks yet.</p>}</section>}
-{tab==="memory"&&<div className="grid lg:grid-cols-2 gap-6"><section className="bg-white border rounded-2xl p-6"><h2 className="text-xl font-bold mb-5">Decision history</h2>{store.meetings.slice().reverse().map(m=><div key={m.id} className="border-l-2 border-indigo-300 pl-4 mb-6"><p className="text-sm text-indigo-700 font-bold">{m.title} · {m.date}</p>{m.decisions.map(d=><div className="mt-3 border rounded-xl p-3" key={d.id}><p className="font-semibold">{d.statement}</p><span className="text-xs text-slate-500">{d.status} · {d.topic}</span></div>)}</div>)}{store.meetings.length===0&&<p>Approve your first meeting to build memory.</p>}</section><section className="bg-white border rounded-2xl p-6"><h2 className="text-xl font-bold mb-5">Recorded conflicts</h2>{store.conflicts.map(c=><div className="border border-amber-200 bg-amber-50 rounded-xl p-4 mb-4" key={c.id}><p className="text-sm">Before: {c.oldStatement}</p><p className="text-sm mt-2">Now: {c.newStatement}</p><span className={chip}>{c.resolution}</span></div>)}{store.conflicts.length===0&&<p>No conflicts recorded.</p>}</section></div>}
-{tab==="digest"&&<div className="grid lg:grid-cols-2 gap-6"><section className="bg-white border rounded-2xl p-6"><h2 className="text-xl font-bold mb-4">Tasks by owner</h2>{owners.map(([owner,tasks])=><div key={owner} className="border-b py-4"><b>{owner} · {tasks.length} tasks</b>{tasks.map(t=><p className="text-sm text-slate-600 mt-2" key={t.id}>{t.title} · {t.deadline||"No deadline"}</p>)}</div>)}{owners.length===0&&<p>No tasks yet.</p>}</section><section className="bg-white border rounded-2xl p-6"><h2 className="text-xl font-bold mb-4">Reminders</h2><h3 className="font-bold text-red-600 mb-3">Overdue ({overdue.length})</h3>{overdue.map(t=><p key={t.id} className="text-sm py-2">{t.title} · {t.deadline}</p>)}<h3 className="font-bold text-amber-600 mt-6 mb-3">Due within 7 days ({upcoming.length})</h3>{upcoming.map(t=><p key={t.id} className="text-sm py-2">{t.title} · {t.deadline}</p>)}</section></div>}
-<footer className="mt-12 text-xs text-slate-400">MeetFlow AI · Hackathon demo · Local JSON memory is temporary on free hosting · Keep confidential meetings out of public demos</footer></main></div>
+import { useEffect, useRef, useState } from "react";
+import { ArrowUpRight, ArrowRight, Volume2, VolumeX, Wind, AlertTriangle, Check, LoaderCircle, Play, FileText, CalendarDays, History, ListTodo } from "lucide-react";
+import type { Meeting, Store, Conflict, Task } from "@/lib/core";
+import "./wild-agent.css";
+
+type Tab = "overview" | "analyze" | "tasks" | "memory" | "digest";
+const empty: Store = {meetings:[],tasks:[],conflicts:[]};
+const demoOne = "Alice: Let's finalize the product launch.\nBob: We will launch on December 15.\nAlice: We decided to launch on December 15.\nCharlie: I will prepare the marketing campaign by November 10.\nBob: I will update the product roadmap by November 5.";
+const demoTwo = "Alice: We need to change our launch date.\nBob: We previously decided December 15.\nAlice: Let's finalize the product launch on January 15 instead.\nCharlie: I will update the marketing campaign by November 12.\nBob: I will update the roadmap by November 8.";
+const videoUrl = "https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/175fbbcd-e50a-480c-bab2-ca16d4678322.mp4";
+const posterUrl = "https://d2ol7oe51mr4n9.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/726b168c-da47-4682-a255-cc3e02f89bae.jpg";
+
+function Contours() {
+ const strokes=Array.from({length:15},(_,i)=>{
+   const y=155+i*34;
+   return <path key={i} d={`M -250 ${y+250} C 180 ${y+200}, 290 ${y-130}, 675 ${y+40} S 1110 ${y+340}, 1720 ${y-160}`} strokeWidth={1.2+(i%5)*.62} opacity={.55+(i%4)*.09}/>;
+ });
+ return <svg className="wa-contours" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">{strokes}</svg>;
+}
+
+function WildHero({onExplore}:{onExplore:()=>void}) {
+ const row=useRef<HTMLDivElement>(null);
+ const pill=useRef<HTMLDivElement>(null);
+ const hair=useRef<HTMLDivElement>(null);
+ const icons=useRef<HTMLDivElement>(null);
+ const video=useRef<HTMLVideoElement>(null);
+ const animations=useRef<Animation[]>([]);
+ const [muted,setMuted]=useState(true);
+ const [ready,setReady]=useState(false);
+ const animateReveal=()=>{
+   for(const a of animations.current) a.cancel();
+   animations.current=[];
+   if(!row.current||!pill.current||!hair.current||!icons.current)return;
+   if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+     pill.current.style.width=window.innerWidth<=720?"calc(100vw - 40px)":"calc(var(--fs) * 3.62)";
+     hair.current.style.opacity="0";
+     icons.current.style.opacity="1";
+     video.current?.pause();return;
+   }
+   const mobile=window.innerWidth<=720;
+   const fs=parseFloat(getComputedStyle(row.current).fontSize)||120;
+   const settings:KeyframeAnimationOptions={duration:2100,fill:"forwards",easing:"linear"};
+   const add=(el:Element,frames:Keyframe[])=>animations.current.push(el.animate(frames,settings));
+   if(mobile){
+      const finalHeight=(window.innerWidth-40)/1.85;
+      add(pill.current,[{height:"1.5px",offset:0},{height:"1.5px",offset:.14},{height:finalHeight*.1+"px",offset:.3},{height:finalHeight*.55+"px",offset:.58},{height:finalHeight+"px",offset:1}]);
+      add(pill.current,[{clipPath:"inset(0 50% round 999px)",offset:0},{clipPath:"inset(0 0 round 999px)",offset:.14},{clipPath:"inset(0 0 round 999px)",offset:1}]);
+   }else{
+      add(pill.current,[{width:fs*.012+"px",offset:0},{width:fs*.012+"px",offset:.14},{width:fs*.16+"px",offset:.3},{width:fs*1.81+"px",offset:.58},{width:fs*3.62+"px",offset:1}]);
+      add(pill.current,[{clipPath:"inset(50% 0 round 999px)",offset:0},{clipPath:"inset(0 0 round 999px)",offset:.14},{clipPath:"inset(0 0 round 999px)",offset:1}]);
+   }
+   add(row.current,[{gap:fs*.026+"px",offset:0},{gap:fs*.026+"px",offset:.14},{gap:fs*.05+"px",offset:.58},{gap:fs*(mobile?.1:.085)+"px",offset:1}]);
+   add(hair.current,[{opacity:1,offset:0},{opacity:1,offset:.14},{opacity:0,offset:.3},{opacity:0,offset:1}]);
+   add(icons.current,[{opacity:0,offset:0},{opacity:0,offset:.8},{opacity:1,offset:1}]);
+   video.current?.play().catch(()=>{});
+   setReady(true);
+ };
+ useEffect(()=>{
+  let cancelled=false;
+  document.fonts.ready.then(()=>{if(!cancelled)animateReveal()});
+  const handle=()=>{animations.current.forEach(a=>a.finish());if(!cancelled)animateReveal()};
+  window.addEventListener("resize",handle);
+  return ()=>{cancelled=true;window.removeEventListener("resize",handle);animations.current.forEach(a=>a.cancel())};
+ },[]);
+ const replay=async()=>{
+   if(!ready||animations.current.length===0){animateReveal();return}
+   const all=animations.current;
+   for(const animation of all){animation.reverse();}
+   await Promise.all(all.map(a=>a.finished.catch(()=>{})));
+   for(const animation of all){animation.play();}
+ };
+ return <><div className="wa-hero">
+   <p className="wa-hero-caption">Discover the extraordinary</p>
+   <div className="wa-word-row" ref={row} style={{fontSize:"var(--fs)"}}>
+     <span className="wa-word">WI</span>
+     <div className="wa-pill" ref={pill}>
+       <video ref={video} src={videoUrl} poster={posterUrl} autoPlay muted={muted} loop playsInline preload="auto" aria-label="Floating island with a waterfall above sunset clouds"/>
+       <div className="wa-hair" ref={hair}/>
+       <div className="wa-pill-icons" ref={icons}>
+         <Wind aria-hidden="true"/>
+         <button className="wa-sound" aria-label={muted?"Enable audio (clip may be silent)":"Mute video"} onClick={()=>setMuted(x=>!x)}>{muted?<VolumeX/>:<Volume2/>}</button>
+       </div>
+     </div>
+     <span className="wa-word">LD</span>
+   </div>
+   <span className="wa-float">Go beyond the ordinary.</span>
+   <span className="wa-float-right">The wild side of every meeting.</span>
+ </div>
+ <div className="wa-lead">
+   <p>Embark on a wild ride from conversations to execution. Discover the decisions, owners and next steps hiding in every meeting, without losing your team's history.</p>
+   <div className="wa-lead-line"/>
+   <button className="wa-btn wa-btn-outline" onClick={replay}><Play size={14}/> Replay reveal</button>
+   <button className="wa-btn" onClick={onExplore}>Let's Get Wild <ArrowUpRight size={16}/></button>
+ </div></>;
+}
+
+function Item({children}:{children:React.ReactNode}){return <div className="wa-item">{children}</div>}
+export default function AgentPage(){
+ const [tab,setTab]=useState<Tab>("overview");
+ const [store,setStore]=useState<Store>(empty);
+ const [title,setTitle]=useState("Product strategy meeting");
+ const [date,setDate]=useState(()=>new Date().toLocaleDateString("en-CA"));
+ const [transcript,setTranscript]=useState("");
+ const [meeting,setMeeting]=useState<Meeting|null>(null);
+ const [conflicts,setConflicts]=useState<Conflict[]>([]);
+ const [approvedD,setApprovedD]=useState<string[]>([]);
+ const [approvedT,setApprovedT]=useState<string[]>([]);
+ const [resolutions,setResolutions]=useState<Record<string,"unresolved"|"supersede"|"keep-both">>({});
+ const [busy,setBusy]=useState(false);
+ const [error,setError]=useState("");
+ const [notice,setNotice]=useState("");
+ async function refresh(){
+    try{const res=await fetch("/api/dashboard",{cache:"no-store"});if(res.ok)setStore(await res.json());}
+    catch{setError("Could not load saved meetings.")}
+ }
+ useEffect(()=>{refresh()},[]);
+ async function analyze(){
+  setBusy(true);setError("");setNotice("");
+  try{
+    const response=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,date,transcript})});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.error||"Analysis failed");
+    setMeeting(result.meeting);
+    setConflicts(result.conflicts);
+    setApprovedD(result.meeting.decisions.map((d:{id:string})=>d.id));
+    setApprovedT(result.meeting.tasks.map((t:{id:string})=>t.id));
+    setResolutions({});
+  }catch(e){setError(e instanceof Error?e.message:"Analysis failed")}
+  finally{setBusy(false)}
+ }
+ async function confirm(){
+  if(!meeting)return;setBusy(true);setError("");
+  try{
+    const response=await fetch("/api/confirm",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({meeting,approvedDecisionIds:approvedD,approvedTaskIds:approvedT,resolutions})});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.error||"Confirmation failed");
+    setMeeting(null);setTranscript("");await refresh();setTab("overview");setNotice(result.createdTasks+" tasks confirmed in the mock tracker.");
+  }catch(e){setError(e instanceof Error?e.message:"Confirmation failed")}
+  finally{setBusy(false)}
+ }
+ const today=new Date().toLocaleDateString("en-CA");
+ const week=new Date(Date.now()+7*86400000).toLocaleDateString("en-CA");
+ const open=store.tasks.filter(t=>t.status==="open");
+ const overdue=open.filter(t=>t.deadline&&t.deadline<today);
+ const upcoming=open.filter(t=>t.deadline&&t.deadline>=today&&t.deadline<=week);
+ const ownerGroups=Object.entries(store.tasks.reduce((acc,t)=>{const k=t.owner||"Unassigned";(acc[k]||=[]).push(t);return acc},{} as Record<string,Task[]>));
+ const nav:[Tab,string][]=[["overview","Home"],["analyze","Analyze"],["tasks","Tasks"],["memory","Memory"],["digest","Digest"]];
+ return <div className="wa">
+   <Contours/>
+   <div className="wa-shell">
+     <nav className="wa-nav" aria-label="Main navigation">
+       <a href="/" className="wa-logo">WILD<span style={{fontWeight:400,letterSpacing:"-.05em"}}>.</span></a>
+       <div className="wa-links">{nav.map(([key,label])=><button className="wa-tab" key={key} aria-current={tab===key?"page":undefined} onClick={()=>setTab(key)}>{label}</button>)}</div>
+       <a className="wa-back" href="/">Explore Wild <ArrowUpRight size={13} style={{display:"inline"}}/></a>
+     </nav>
+     <main className="wa-main">
+       {tab==="overview"&&<WildHero onExplore={()=>setTab("analyze")}/>}
+       {error&&<div className="wa-error" role="alert">{error}</div>}
+       {notice&&<div className="wa-success" role="status">{notice}</div>}
+       {tab==="overview"&&<section className="wa-section">
+         <p className="wa-eyebrow">001 / Your command centre</p>
+         <h2>Meetings. Into motion.</h2>
+         <p className="wa-section-description">Your team's decisions, action items and changing commitments, in one place. Make every conversation count.</p>
+         <div className="wa-stats">{[["Meetings",store.meetings.length],["Action items",store.tasks.length],["Conflicts",store.conflicts.length],["Overdue",overdue.length]].map(([name,count])=><div key={name} className="wa-stat"><span>{name}</span><strong>{count}</strong></div>)}</div>
+         <div className="wa-feature">
+           <div><h3>Start with a conversation.</h3><p>Paste a transcript, detect decisions, surface changes from past meetings, then approve everything before execution.</p></div>
+           <button className="wa-btn" onClick={()=>setTab("analyze")}>Analyze a meeting <ArrowRight size={16}/></button>
+         </div>
+       </section>}
+       {tab==="analyze"&&<section className="wa-section">
+         <p className="wa-eyebrow">002 / Meeting intelligence</p><h1>Turn talk into action.</h1>
+         <p className="wa-section-description">Paste a transcript or upload a plain text file. The agent identifies who said what, extracts commitments and checks earlier decisions.</p>
+         <div className="wa-grid">
+          <div className="wa-panel">
+           <h3>New meeting</h3>
+           <div className="wa-field-row"><label className="wa-field">Meeting name<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Weekly strategy sync"/></label><label className="wa-field">Meeting date<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label></div>
+           <label className="wa-field wa-file">Import a .txt transcript<input type="file" accept=".txt,text/plain" onChange={async e=>{const f=e.target.files?.[0];if(f)setTranscript(await f.text())}}/></label>
+           <label className="wa-field">Transcript<textarea value={transcript} onChange={e=>setTranscript(e.target.value)} placeholder={"Alice: We decided to launch on December 15.\nBob: I'll update the roadmap by Friday."}/></label>
+           <div className="wa-chips"><button className="wa-chip" onClick={()=>{setTranscript(demoOne);setTitle("Initial launch planning");setMeeting(null)}}>Use demo meeting 01</button><button className="wa-chip" onClick={()=>{setTranscript(demoTwo);setTitle("Launch follow-up");setMeeting(null)}}>Use demo meeting 02</button></div>
+           <button className="wa-btn" disabled={busy||transcript.trim().length<10||!title.trim()} onClick={analyze}>{busy?<LoaderCircle size={16} className="animate-spin"/>:<FileText size={16}/>} Analyze transcript <ArrowUpRight size={16}/></button>
+          </div>
+          <aside className="wa-panel"><h3>The journey</h3>{["Upload or paste a transcript","Extract decisions and action items","Compare historical commitments","Review, edit and approve","Push to mock tracker and digest"].map((text,i)=><div className="wa-step" key={text}><strong>0{i+1}</strong><span>{text}</span></div>)}<p className="wa-small" style={{marginTop:30}}>AI-powered extraction runs when a Sarvam key is configured. Otherwise the demo parser is used.</p></aside>
+         </div>
+         {meeting&&<div className="wa-panel" style={{marginTop:30}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"center",flexWrap:"wrap"}}><h3>Review before execution</h3><span className="wa-tag">{meeting.engine} extraction</span></div>
+            <p className="wa-summary">{meeting.summary}</p><p className="wa-small">Speakers: {meeting.speakers.join(", ")||"Unknown"}</p>
+            <h3 style={{marginTop:30}}>Decisions ({meeting.decisions.length})</h3>
+            {meeting.decisions.map(d=><Item key={d.id}><label><input type="checkbox" className="wa-checkbox" checked={approvedD.includes(d.id)} onChange={()=>setApprovedD(a=>a.includes(d.id)?a.filter(x=>x!==d.id):[...a,d.id])}/><div><strong>{d.statement}</strong><p>{d.topic} · Evidence: {d.evidence}</p></div></label></Item>)}
+            {meeting.decisions.length===0&&<p className="wa-empty">No finalized decisions detected.</p>}
+            {conflicts.filter(c=>approvedD.includes(c.newId)).length>0&&<h3 style={{marginTop:30,display:"flex",alignItems:"center",gap:10}}><AlertTriangle size={20}/> Potential contradictions</h3>}
+            {conflicts.filter(c=>approvedD.includes(c.newId)).map(c=><div key={c.id} className="wa-conflict"><p><b>Previous:</b> {c.oldStatement}</p><p><b>Current:</b> {c.newStatement}</p><p>{c.reason}</p><label className="wa-field">Resolution<select className="wa-select" value={resolutions[c.newId+":"+c.oldId]||"unresolved"} onChange={e=>setResolutions(r=>({...r,[c.newId+":"+c.oldId]:e.target.value as "unresolved"|"supersede"|"keep-both"}))}><option value="unresolved">Keep flagged for review</option><option value="supersede">Replace previous decision</option><option value="keep-both">Keep both decisions</option></select></label></div>)}
+            <h3 style={{marginTop:32}}>Action items ({meeting.tasks.length})</h3>
+            {meeting.tasks.map(t=><Item key={t.id}><label><input type="checkbox" className="wa-checkbox" checked={approvedT.includes(t.id)} onChange={()=>setApprovedT(a=>a.includes(t.id)?a.filter(x=>x!==t.id):[...a,t.id])}/><div style={{width:"100%"}}><label className="wa-field">Task<input value={t.title} onChange={e=>setMeeting(m=>m?{...m,tasks:m.tasks.map(v=>v.id===t.id?{...v,title:e.target.value}:v)}:m)}/></label><div className="wa-field-row" style={{marginTop:15}}><label className="wa-field">Owner<input value={t.owner||""} onChange={e=>setMeeting(m=>m?{...m,tasks:m.tasks.map(v=>v.id===t.id?{...v,owner:e.target.value||null}:v)}:m)}/></label><label className="wa-field">Deadline<input type="date" value={t.deadline||""} onChange={e=>setMeeting(m=>m?{...m,tasks:m.tasks.map(v=>v.id===t.id?{...v,deadline:e.target.value||null}:v)}:m)}/></label></div><p>Evidence: {t.evidence}</p></div></label></Item>)}
+            {meeting.tasks.length===0&&<p className="wa-empty">No action items detected.</p>}
+            <button className="wa-btn" disabled={busy} style={{marginTop:25}} onClick={confirm}><Check size={16}/> Confirm and create tasks</button>
+         </div>}
+       </section>}
+       {tab==="tasks"&&<section className="wa-section"><p className="wa-eyebrow">003 / Execution</p><h1>Every next move.</h1><p className="wa-section-description">All approved work, with a named owner and a tracker ID. Tasks are recorded to the demo task tracker.</p><div className="wa-panel"><h3>Confirmed tasks</h3>{store.tasks.length===0&&<p className="wa-empty">No approved tasks yet. Analyze your first meeting to begin.</p>}{store.tasks.map(t=><Item key={t.id}><div style={{display:"flex",alignItems:"start",justifyContent:"space-between",gap:18}}><div><strong>{t.title}</strong><p>{t.owner||"Unassigned"} · {t.deadline||"No deadline"} · {t.priority}</p></div><span className="wa-tag">{t.trackerId||"Mock task"}</span></div></Item>)}</div></section>}
+       {tab==="memory"&&<section className="wa-section"><p className="wa-eyebrow">004 / Collective intelligence</p><h1>Never lose a decision.</h1><p className="wa-section-description">Persistent context connects decisions across meetings and surfaces possible contradictions before they become costly surprises.</p><div className="wa-grid"><div className="wa-panel"><h3>Decision history</h3>{store.meetings.length===0&&<p className="wa-empty">Your approved meetings will appear here.</p>}{store.meetings.slice().reverse().map(m=><div key={m.id} className="wa-item"><strong>{m.title}</strong><p className="wa-small">{m.date} · {m.engine}</p>{m.decisions.map(d=><p key={d.id} style={{marginTop:12}}>{d.statement} <span className="wa-tag">{d.status}</span></p>)}</div>)}</div><div className="wa-panel"><h3>Cross-meeting conflicts</h3>{store.conflicts.length===0&&<p className="wa-empty">No conflicts recorded so far.</p>}{store.conflicts.map(c=><div className="wa-conflict" key={c.id}><p><b>Before:</b> {c.oldStatement}</p><p><b>Now:</b> {c.newStatement}</p><span className="wa-tag">{c.resolution}</span></div>)}</div></div></section>}
+       {tab==="digest"&&<section className="wa-section"><p className="wa-eyebrow">005 / Stay accountable</p><h1>The week ahead.</h1><p className="wa-section-description">Person-by-person commitments and deadline reminders, generated automatically from confirmed tasks.</p><div className="wa-stats">{[["Assigned tasks",store.tasks.length],["Owners",ownerGroups.length],["Overdue",overdue.length],["Due soon",upcoming.length]].map(([label,n])=><div key={label} className="wa-stat"><span>{label}</span><strong>{n}</strong></div>)}</div><div className="wa-grid"><div className="wa-panel"><h3>By owner</h3>{ownerGroups.length===0&&<p className="wa-empty">No assigned tasks yet.</p>}{ownerGroups.map(([name,tasks])=><Item key={name}><strong>{name} · {tasks.length} task(s)</strong>{tasks.map(t=><p key={t.id}>{t.title} · {t.deadline||"No deadline"}</p>)}</Item>)}</div><div className="wa-panel"><h3>Deadline reminders</h3><p className="wa-eyebrow" style={{marginTop:24}}>Overdue ({overdue.length})</p>{overdue.map(t=><Item key={t.id}><strong>{t.title}</strong><p>{t.deadline} · {t.owner||"Unassigned"}</p></Item>)}<p className="wa-eyebrow" style={{marginTop:25}}>Within 7 days ({upcoming.length})</p>{upcoming.map(t=><Item key={t.id}><strong>{t.title}</strong><p>{t.deadline} · {t.owner||"Unassigned"}</p></Item>)}{overdue.length+upcoming.length===0&&<p className="wa-empty">No urgent deadlines. Enjoy the view.</p>}</div></div></section>}
+       <footer className="wa-footer"><span>WILD / Meeting-to-Execution AI</span><span>Go further. Remember more. Do better.</span><span>Demo workspace · No authentication · Temporary file storage</span></footer>
+     </main>
+   </div>
+ </div>
 }
