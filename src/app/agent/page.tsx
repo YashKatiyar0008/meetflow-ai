@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, ArrowRight, Volume2, VolumeX, Wind, AlertTriangle, Check, LoaderCircle, Play, FileText, CalendarDays, History, ListTodo } from "lucide-react";
 import type { Meeting, Store, Conflict, Task } from "@/lib/core";
 import "./wild-agent.css";
+import { importWisprFlow } from "@/lib/wispr-import";
 
 type Tab = "overview" | "analyze" | "tasks" | "memory" | "digest";
 const empty: Store = {meetings:[],tasks:[],conflicts:[]};
@@ -102,6 +103,7 @@ export default function AgentPage(){
  const [title,setTitle]=useState("Product strategy meeting");
  const [date,setDate]=useState(()=>new Date().toLocaleDateString("en-CA"));
  const [transcript,setTranscript]=useState("");
+ const [wisprNotice,setWisprNotice]=useState("");
  const [meeting,setMeeting]=useState<Meeting|null>(null);
  const [conflicts,setConflicts]=useState<Conflict[]>([]);
  const [approvedD,setApprovedD]=useState<string[]>([]);
@@ -115,6 +117,30 @@ export default function AgentPage(){
     catch{setError("Could not load saved meetings.")}
  }
  useEffect(()=>{refresh()},[]);
+ async function pasteWisprFlow(){
+  setError("");setWisprNotice("");
+  try{
+    const raw=await navigator.clipboard.readText();
+    const imported=importWisprFlow(raw);
+    setTranscript(imported.transcript);
+    if(imported.title)setTitle(imported.title);
+    setMeeting(null);
+    setWisprNotice(imported.source==="wispr-notetaker"
+      ? "Imported full meeting transcript from Wispr Flow"+(imported.speakers.length?" · "+imported.speakers.length+" identified speakers":"")+"."
+      : "Pasted transcript from clipboard. Review it before analysis.");
+    if(imported.warning)setWisprNotice(imported.warning);
+  }catch(e){setError(e instanceof Error?e.message:"Clipboard access failed. Paste with Cmd/Ctrl + V instead.")}
+ }
+ function loadWisprText(raw:string){
+   try{
+     const imported=importWisprFlow(raw);
+     setTranscript(imported.transcript);
+     if(imported.title)setTitle(imported.title);
+     setMeeting(null);
+     setWisprNotice(imported.warning||"Wispr Flow transcript is ready for review.");
+     setError("");
+   }catch(e){setError(e instanceof Error?e.message:"Could not read transcript")}
+ }
  async function analyze(){
   setBusy(true);setError("");setNotice("");
   try{
@@ -170,13 +196,23 @@ export default function AgentPage(){
        </section>}
        {tab==="analyze"&&<section className="wa-section">
          <p className="wa-eyebrow">002 / Meeting intelligence</p><h1>Turn talk into action.</h1>
-         <p className="wa-section-description">Paste a transcript or upload a plain text file. The agent identifies who said what, extracts commitments and checks earlier decisions.</p>
+         <p className="wa-section-description">Use Wispr Flow to dictate or import a meeting transcript, or upload a plain text file. The agent identifies who said what, extracts commitments and checks earlier decisions.</p>
          <div className="wa-grid">
           <div className="wa-panel">
            <h3>New meeting</h3>
            <div className="wa-field-row"><label className="wa-field">Meeting name<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Weekly strategy sync"/></label><label className="wa-field">Meeting date<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label></div>
-           <label className="wa-field wa-file">Import a .txt transcript<input type="file" accept=".txt,text/plain" onChange={async e=>{const f=e.target.files?.[0];if(f)setTranscript(await f.text())}}/></label>
-           <label className="wa-field">Transcript<textarea value={transcript} onChange={e=>setTranscript(e.target.value)} placeholder={"Alice: We decided to launch on December 15.\nBob: I'll update the roadmap by Friday."}/></label>
+           <div className="wa-wispr" aria-label="Wispr Flow meeting input">
+             <div className="wa-wispr-title"><span className="wa-eyebrow">Voice-powered input</span><strong>Wispr Flow → wisprflow.ai</strong></div>
+             <p>Dictate directly into the transcript field with the Wispr Flow desktop app, or copy a full Notetaker meeting (Markdown) and import it here. Speaker labels are preserved when present.</p>
+             <div className="wa-chips">
+               <button type="button" className="wa-btn" onClick={pasteWisprFlow}>Import from clipboard <ArrowRight size={15}/></button>
+               <a className="wa-chip" href="https://wisprflow.ai/" target="_blank" rel="noreferrer">Open Wispr Flow ↗</a>
+             </div>
+             <label className="wa-field wa-file">Upload Wispr Flow export (.md or .txt)<input type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" onChange={async e=>{const file=e.target.files?.[0];if(file)loadWisprText(await file.text())}}/></label>
+             {wisprNotice&&<p className="wa-success" role="status">{wisprNotice}</p>}
+             <p className="wa-small">Clipboard import is local to your browser. This does not connect to or sync a Wispr account.</p>
+           </div>
+           <label className="wa-field">Transcript — click here and dictate with Wispr Flow<textarea value={transcript} onChange={e=>setTranscript(e.target.value)} placeholder={"Alice: We decided to launch on December 15.\nBob: I'll update the roadmap by Friday."}/></label>
            <div className="wa-chips"><button className="wa-chip" onClick={()=>{setTranscript(demoOne);setTitle("Initial launch planning");setMeeting(null)}}>Use demo meeting 01</button><button className="wa-chip" onClick={()=>{setTranscript(demoTwo);setTitle("Launch follow-up");setMeeting(null)}}>Use demo meeting 02</button></div>
            <button className="wa-btn" disabled={busy||transcript.trim().length<10||!title.trim()} onClick={analyze}>{busy?<LoaderCircle size={16} className="animate-spin"/>:<FileText size={16}/>} Analyze transcript <ArrowUpRight size={16}/></button>
           </div>
